@@ -18,6 +18,38 @@ import {
 } from "@/components/ui/resizable";
 import { ABORTED } from "@/lib/utils";
 
+// Type guards for message parts
+interface ErrorPart {
+  type: "error";
+  error: unknown;
+}
+
+function isErrorPart(part: unknown): part is ErrorPart {
+  return (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "error"
+  );
+}
+
+interface ToolInvocationPart {
+  type: "tool-invocation";
+  toolInvocation: {
+    state: string;
+    result?: unknown;
+  };
+}
+
+function isToolInvocationPart(part: unknown): part is ToolInvocationPart {
+  return (
+    typeof part === "object" &&
+    part !== null &&
+    "type" in part &&
+    part.type === "tool-invocation"
+  );
+}
+
 export default function Chat() {
   // Create separate refs for mobile and desktop to ensure both scroll properly
   const [desktopContainerRef, desktopEndRef] = useScrollToBottom();
@@ -183,8 +215,8 @@ export default function Chat() {
     
     if (sanitizedMessage.parts && Array.isArray(sanitizedMessage.parts)) {
       sanitizedMessage.parts = sanitizedMessage.parts.map((part) => {
-        // Handle error parts
-        if (part && part.type === "error") {
+        // Handle error parts using type guard
+        if (isErrorPart(part)) {
           // Clone the error part
           const sanitizedPart = { ...part };
           
@@ -203,8 +235,8 @@ export default function Chat() {
           return sanitizedPart;
         }
         
-        // Handle tool-invocation parts that might have errors
-        if (part && part.type === "tool-invocation" && part.toolInvocation) {
+        // Handle tool-invocation parts using type guard
+        if (isToolInvocationPart(part) && part.toolInvocation) {
           const sanitizedPart = { ...part };
           
           // Check if tool invocation has an error result
