@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "frame-src https://*.vercel.app https://*.vercel.run https://va.vercel-scripts.com",
+              // Add *.e2b.app to allow the iframe to load
+              "frame-src https://*.vercel.app https://*.vercel.run https://va.vercel-scripts.com https://*.e2b.app",
               "frame-ancestors 'self' https://*.vercel.app https://*.vercel.run",
               "connect-src 'self' https://*.vercel.app https://*.vercel.run",
               "img-src 'self' data: https://*.vercel.app https://*.vercel.run",

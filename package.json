@@ -11,10 +11,11 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^1.1.15",
     "@ai-sdk/react": "^1.1.21",
-    "@vercel/sandbox": "latest",
+    "@e2b/desktop": "^2.2.3",
     "@radix-ui/react-label": "^2.1.2",
     "@radix-ui/react-slot": "^1.1.2",
     "@vercel/analytics": "^1.5.0",
+    "@vercel/sandbox": "latest",
     "ai": "^4.1.54",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

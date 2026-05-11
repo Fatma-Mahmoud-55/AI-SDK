@@ -46,10 +46,15 @@ export default function Chat() {
     onError: (error) => {
       console.error(error);
       toast.error("There was an error", {
-        description: "Please try again later.",
+        description: error.message || "Please try again later.",
         richColors: true,
         position: "top-center",
       });
+    },
+    onResponse: (response) => {
+      if (!response.ok) {
+        console.error("API response error:", response.status, response.statusText);
+      }
     },
   });
 
@@ -88,11 +93,15 @@ export default function Chat() {
     try {
       setIsInitializing(true);
       const { streamUrl, id } = await getDesktopURL(sandboxId || undefined);
-      // console.log("Refreshed desktop connection with ID:", id);
       setStreamUrl(streamUrl);
       setSandboxId(id);
     } catch (err) {
       console.error("Failed to refresh desktop:", err);
+      toast.error("Failed to refresh desktop", {
+        description: err instanceof Error ? err.message : "Please try again",
+        richColors: true,
+        position: "top-center",
+      });
     } finally {
       setIsInitializing(false);
     }
@@ -153,7 +162,11 @@ export default function Chat() {
         setSandboxId(id);
       } catch (err) {
         console.error("Failed to initialize desktop:", err);
-        toast.error("Failed to initialize desktop");
+        toast.error("Failed to initialize desktop", {
+          description: err instanceof Error ? err.message : "Please try again",
+          richColors: true,
+          position: "top-center",
+        });
       } finally {
         setIsInitializing(false);
       }
@@ -162,6 +175,63 @@ export default function Chat() {
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sanitize messages to ensure error parts have string values
+  const sanitizedMessages = messages.map((message) => {
+    // Create a deep copy of the message
+    const sanitizedMessage = { ...message };
+    
+    if (sanitizedMessage.parts && Array.isArray(sanitizedMessage.parts)) {
+      sanitizedMessage.parts = sanitizedMessage.parts.map((part) => {
+        // Handle error parts
+        if (part && part.type === "error") {
+          // Clone the error part
+          const sanitizedPart = { ...part };
+          
+          // Ensure error property is a string
+          if (sanitizedPart.error !== undefined && typeof sanitizedPart.error !== "string") {
+            // Convert error object to string message
+            if (sanitizedPart.error instanceof Error) {
+              sanitizedPart.error = sanitizedPart.error.message;
+            } else if (typeof sanitizedPart.error === "object") {
+              sanitizedPart.error = sanitizedPart.error.message || JSON.stringify(sanitizedPart.error);
+            } else {
+              sanitizedPart.error = String(sanitizedPart.error);
+            }
+          }
+          
+          return sanitizedPart;
+        }
+        
+        // Handle tool-invocation parts that might have errors
+        if (part && part.type === "tool-invocation" && part.toolInvocation) {
+          const sanitizedPart = { ...part };
+          
+          // Check if tool invocation has an error result
+          if (sanitizedPart.toolInvocation.state === "result" && 
+              sanitizedPart.toolInvocation.result && 
+              typeof sanitizedPart.toolInvocation.result !== "string" &&
+              sanitizedPart.toolInvocation.result !== ABORTED) {
+            
+            // Convert error result to string
+            if (sanitizedPart.toolInvocation.result instanceof Error) {
+              sanitizedPart.toolInvocation.result = sanitizedPart.toolInvocation.result.message;
+            } else if (typeof sanitizedPart.toolInvocation.result === "object") {
+              sanitizedPart.toolInvocation.result = 
+                sanitizedPart.toolInvocation.result.message || 
+                JSON.stringify(sanitizedPart.toolInvocation.result);
+            }
+          }
+          
+          return sanitizedPart;
+        }
+        
+        return part;
+      });
+    }
+    
+    return sanitizedMessage;
+  });
 
   return (
     <div className="flex h-dvh relative">
@@ -225,20 +295,20 @@ export default function Chat() {
               className="flex-1 space-y-6 py-4 overflow-y-auto px-4"
               ref={desktopContainerRef}
             >
-              {messages.length === 0 ? <ProjectInfo /> : null}
-              {messages.map((message, i) => (
+              {sanitizedMessages.length === 0 ? <ProjectInfo /> : null}
+              {sanitizedMessages.map((message, i) => (
                 <PreviewMessage
                   message={message}
                   key={message.id}
                   isLoading={isLoading}
                   status={status}
-                  isLatestMessage={i === messages.length - 1}
+                  isLatestMessage={i === sanitizedMessages.length - 1}
                 />
               ))}
               <div ref={desktopEndRef} className="pb-2" />
             </div>
 
-            {messages.length === 0 && (
+            {sanitizedMessages.length === 0 && (
               <PromptSuggestions
                 disabled={isInitializing}
                 submitPrompt={(prompt: string) =>
@@ -273,20 +343,20 @@ export default function Chat() {
           className="flex-1 space-y-6 py-4 overflow-y-auto px-4"
           ref={mobileContainerRef}
         >
-          {messages.length === 0 ? <ProjectInfo /> : null}
-          {messages.map((message, i) => (
+          {sanitizedMessages.length === 0 ? <ProjectInfo /> : null}
+          {sanitizedMessages.map((message, i) => (
             <PreviewMessage
               message={message}
               key={message.id}
               isLoading={isLoading}
               status={status}
-              isLatestMessage={i === messages.length - 1}
+              isLatestMessage={i === sanitizedMessages.length - 1}
             />
           ))}
           <div ref={mobileEndRef} className="pb-2" />
         </div>
 
-        {messages.length === 0 && (
+        {sanitizedMessages.length === 0 && (
           <PromptSuggestions
             disabled={isInitializing}
             submitPrompt={(prompt: string) =>
